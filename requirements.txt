@@ -1,0 +1,5 @@
+scrapy==2.11.2
+gspread==6.1.2
+google-cloud-storage==2.16.0
+google-auth==2.30.0
+pyaml==24.4.0

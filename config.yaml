@@ -1,0 +1,26 @@
+spreadsheet:
+  tickers_tab: Carteira
+  dy_tab:
+    name: Dividendos
+    header_row: 2
+    last_column: 7
+    total_column:
+      index: 8
+    dy_avg_column:
+      index: 9
+    tickers_column:
+      name: Ticker
+      index:  2
+    date_column:
+      name: Data
+      index:  1
+      format: '%d/%m/%Y'
+    dy_value_column:
+      name: Dividendo/Cota
+      index:  5
+crawler:
+  site_component: '//div[@class="dividends-table-container"]//text()'
+search:
+  before_days_limit: 5
+
+
