@@ -5,8 +5,6 @@ import yaml
 import re
 import time
 
-import scrapy
-from scrapy.crawler import CrawlerProcess
 from google.cloud import storage
 from gspreadsheet import SpreadsheetIntegration
 from datetime import datetime
@@ -182,14 +180,19 @@ def insert_blank_row_set(starting_point, next_row_to_be_filled, original_fiis_le
         spreadsheet.format(''.join(['H',str(starting_point),':I',str(starting_point)]), {'textFormat': {'bold': True}})
         # TODO: copy/paste for formula cells on past month
 
-def check_dividend_yield(fiis_list=[], limited=True):
+def check_dividend_yield(fiis_list=[], fiis_collected=[], limited=True, mode='scraping'):
     """
         Args:
             fiis_list (list, optional): list of FII code to process, if informed. Defaults to [].
+            fiis_collected (list, optional): list of FIIs data collected outside the scraping process. Should be in the format "{fii:{value,date}}". Defaults to [].
             limited (bool, optional): Delimit days count from today and if true, it will confront with configured limit days to process FIIs data. Defaults to True.
+            mode (str, optional): 'scraping' to use scrapy to collect FIIs data, 'collected' to use fiis_collected data. Defaults to 'scraping'.
     """
     original_fiis_length = None
-    if not fiis:
+    if not fiis and mode == 'scraping':
+        import scrapy
+        from scrapy.crawler import CrawlerProcess
+
         spreadsheet.set_worksheet(SPREADSHEET_TICKETS_TAB)
         original_fiis_list = [ticker for ticker in spreadsheet.get_column_values(TICKERS_COLUMN_INDEX-1) if re.search('\w+11', ticker)]
         original_fiis_length = len(original_fiis_list)
@@ -205,6 +208,17 @@ def check_dividend_yield(fiis_list=[], limited=True):
         for fii in fiis_list:
             process.crawl(FiisComBrSpider, fii=fii)
         process.start()
+    elif mode == 'collected' and fiis_collected:
+        logging.info('Skipping crawling process, using provided FIIs data')
+        if fiis_collected:
+            original_fiis_length = len(fiis_collected)
+            fiis = fiis_collected
+        if original_fiis_length == 0:
+            logging.warning('no FIIs to be processed')
+            return
+    else:
+        logging.warning('no valid mode selected or insufficient data input, exiting')
+        return
     logging.info(f'\nProcessing {len(fiis)} FIIs')
     if not any_fii_extracted(fiis):
         logging.warning('could not extract fiis from source. Check for source website updates.')
