@@ -9,7 +9,6 @@ from google.cloud import storage
 from datetime import datetime
 
 from tools.gspreadsheet import SpreadsheetIntegration
-from tools.webscraping import FiisComBrSpider
 
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
@@ -106,7 +105,7 @@ def insert_blank_row_set(starting_point, next_row_to_be_filled, original_fiis_le
         spreadsheet.format(''.join(['H',str(starting_point),':I',str(starting_point)]), {'textFormat': {'bold': True}})
         # TODO: copy/paste for formula cells on past month
 
-def check_dividend_yield(fiis_list=[], fiis_collected=[], limited=True, mode='scraping'):
+def check_dividend_yield(fiis_list=[], fiis_collected={}, limited=True, mode='scraping'):
     """
         Args:
             fiis_list (list, optional): list of FII code to process, if informed. Defaults to [].
@@ -117,7 +116,7 @@ def check_dividend_yield(fiis_list=[], fiis_collected=[], limited=True, mode='sc
     original_fiis_length = None
     global fiis
     if not fiis and mode == 'scraping':
-        import scrapy
+        from tools.webscraping import FiisComBrSpider
         from scrapy.crawler import CrawlerProcess
 
         spreadsheet.set_worksheet(SPREADSHEET_TICKETS_TAB)
