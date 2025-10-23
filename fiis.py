@@ -96,7 +96,7 @@ def insert_blank_row_set(starting_point, next_row_to_be_filled, original_fiis_le
             bool: True if blank row should be inserted, False otherwise
     """
     if original_fiis_length is not None and filled_cells_count >= original_fiis_length:
-        spreadsheet.insert_rows(dy_value_filled_cells, next_row_to_be_filled, value_input_option='RAW')
+        spreadsheet.insert_rows(dy_value_filled_cells, next_row_to_be_filled)
         # create total sum cell
         spreadsheet.update_cell(starting_point, TOTAL_COLUMN, ''.join(['=SUM(C',str(next_row_to_be_filled),':C',str(starting_point),')']))
         # most_recent_date = max((date_values), key=lambda x: datetime.strptime(x, "%d/%m/%Y"))
@@ -136,9 +136,9 @@ def check_dividend_yield(fiis_list=[], fiis_collected={}, limited=True, mode='sc
         process.start()
     elif mode == 'collected' and fiis_collected:
         logging.info('Skipping crawling process, using provided FIIs data')
-        if fiis_collected:
-            original_fiis_length = len(fiis_collected)
-            fiis = fiis_collected
+        original_fiis_list = [ticker for ticker in spreadsheet.get_column_values(TICKERS_COLUMN_INDEX-1) if re.search('\w+11', ticker)]
+        original_fiis_length = len(original_fiis_list)
+        fiis = fiis_collected
         if original_fiis_length == 0:
             logging.warning('no FIIs to be processed')
             return

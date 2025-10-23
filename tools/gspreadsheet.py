@@ -42,7 +42,6 @@ class SpreadsheetIntegration:
         self.worksheet.format(cell_range, format_structure)
 
     def find(self, query, from_row=0):
-        import ipdb; ipdb.set_trace()
         return self.worksheet.find(query, in_row=from_row)
 
     def get_cells_in_the_range(self, first_row, first_column, last_row, last_column):
