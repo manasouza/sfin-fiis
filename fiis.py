@@ -115,11 +115,11 @@ def check_dividend_yield(fiis_list=[], fiis_collected={}, limited=True, mode='sc
     """
     original_fiis_length = None
     global fiis
+    spreadsheet.set_worksheet(SPREADSHEET_TICKETS_TAB)
     if not fiis and mode == 'scraping':
         from tools.webscraping import FiisComBrSpider
         from scrapy.crawler import CrawlerProcess
 
-        spreadsheet.set_worksheet(SPREADSHEET_TICKETS_TAB)
         original_fiis_list = [ticker for ticker in spreadsheet.get_column_values(TICKERS_COLUMN_INDEX-1) if re.search('\w+11', ticker)]
         original_fiis_length = len(original_fiis_list)
         if not fiis_list:
