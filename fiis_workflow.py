@@ -125,9 +125,6 @@ class CollectedDataWorkflow(Workflow):
 
     def register_fiis(self, fiis_data: dict, next_row_to_be_filled=None):
       fiis = json.loads(fiis_data)
-
-      import ipdb; ipdb.set_trace()
-
       logging.info(f'\nProcessing {len(fiis)} FIIs')
       for ticker, fii_data in fiis.items():
         logging.info(f'FII: {ticker} => R$ {fii_data["value"]} em {fii_data["date"]}')
