@@ -131,6 +131,8 @@ class CollectedDataWorkflow(Workflow):
         self.spreadsheet.update_cell(next_row_to_be_filled, TICKERS_COLUMN_INDEX, ticker)
         self.spreadsheet.update_cell(next_row_to_be_filled, VALUE_COLUMN_INDEX, fii_data['value'] if fii_data['value'] != '' else 0)
         self.spreadsheet.update_cell(next_row_to_be_filled, DATE_COLUMN_INDEX, fii_data['date'])
+        next_row_to_be_filled += 1
+        # TODO: validate limit of rows to be filled
 
 
 
