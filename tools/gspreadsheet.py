@@ -1,7 +1,11 @@
-import gspread
 import json
-from google.oauth2.service_account import Credentials
+import gspread
+
 from gspread.worksheet import Worksheet
+from gspread.utils import rowcol_to_a1
+from gspread.utils import ValueRenderOption
+
+from google.oauth2.service_account import Credentials
 
 DEFAULT_SHEETS_API_SCOPE = ['https://spreadsheets.google.com/feeds',
                             'https://www.googleapis.com/auth/drive']
@@ -56,11 +60,21 @@ class SpreadsheetIntegration:
         except gspread.exceptions.APIError as e:
             print('Error while inserting rows, altough rows inserted')
 
-    def update_cell(self, row, column, value):
-        self.worksheet.update_cell(row, column, value)
+    def update_cell(self, row, column, value, from_range_row=None, to_range_row=None, from_range_column=None, to_range_column=None):
+        start_cell = rowcol_to_a1(from_range_row if from_range_row else row,
+                                  from_range_column if from_range_column else column)
+        end_cell = rowcol_to_a1(to_range_row if to_range_row else row,
+                                to_range_column if to_range_column else column)
+        self.worksheet.update_cell(row, column, value.format(start_cell, end_cell))
 
     def fii_processed(self, fii_code, ref_row, last_row, ticker_column):
         return len([fii_code for ticker in self.worksheet.range(ref_row, ticker_column, last_row, ticker_column) if ticker.value == fii_code]) > 0
+
+    def copy_cells(self, range_from: str):
+        return self.worksheet.get(range_from, value_render_option=ValueRenderOption.formula)
+
+    def paste_cells(self, range_to: str, values: list):
+        self.worksheet.update(range_to, values, value_input_option='USER_ENTERED')
 
     def _next_available_row(self, worksheet: Worksheet):
         str_list = list(filter(None, worksheet.col_values(1)))

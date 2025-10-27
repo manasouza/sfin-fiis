@@ -5,9 +5,9 @@ spreadsheet:
     header_row: 2
     last_column: 7
     total_column:
-      index: 8
+      index: 5
     dy_avg_column:
-      index: 9
+      index: 7
     tickers_column:
       name: Ticker
       index:  2
