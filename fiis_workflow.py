@@ -71,7 +71,7 @@ class Workflow:
         self.spreadsheet.update_cell(last_row_with_total, TOTAL_COLUMN, '=SUM({}:{})', from_range_row=starting_point, to_range_row=last_row)
         self.spreadsheet.update_cell(last_row_with_total, DY_REF_COLUMN, '=AVERAGE({}:{})', from_range_row=starting_point, to_range_row=last_row)
         # set bold and horizontal line for total row
-        self.spreadsheet.format(''.join(['A',str(last_row_with_total),':I',str(last_row_with_total)]),
+        self.spreadsheet.format(''.join(['A',str(last_row_with_total),':A',str(last_row_with_total)]),
                                 {
                                   'textFormat': {'bold': True},'borders': {
                                   'bottom': {
