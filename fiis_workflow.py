@@ -48,9 +48,10 @@ class Workflow:
       logging.info(f'Starting point to fill DY values: {starting_point}')
       # next_row_to_be_filled = (dy_value_cell_header.row + original_fiis_length)
       last_row = (dy_value_cell_header.row + original_fiis_length)
-      dy_value_cells = self.spreadsheet.get_cells_in_the_range(starting_point, dy_value_cell_header.col, starting_point, dy_value_cell_header.col)
+      dy_value_cells = self.spreadsheet.get_cells_in_the_range(starting_point, dy_value_cell_header.col, last_row, dy_value_cell_header.col)
       dy_ticker_cells = self.spreadsheet.get_cells_in_the_range(starting_point, dy_ticker_cell_column, last_row, dy_ticker_cell_column)
-      fiis_registered = [d.value.upper() for d in dy_ticker_cells if d.value != '']
+      fiis_valid = [d.value.upper() for index,d in enumerate(dy_ticker_cells) if d.value != '' and dy_value_cells[index].value != 'R$ 0,00']
+      fiis_registered = [(index, d.value.upper()) for index, d in enumerate(dy_ticker_cells) if d.value != '']
       logging.info(f'FIIs already registered in DY worksheet: {fiis_registered}')
       next_row_to_be_filled = len(fiis_registered) + starting_point
       if next_row_to_be_filled >= (original_fiis_length + starting_point):
@@ -82,9 +83,13 @@ class Workflow:
                               }})
       else:
         logging.info(f'Next row to be filled: {next_row_to_be_filled}')
-      return starting_point, next_row_to_be_filled, dy_value_cells, fiis_registered
+      return starting_point, next_row_to_be_filled, fiis_valid, fiis_registered
 
-    def register_fiis(self, fiis_data: dict, next_row_to_be_filled=None):
+    def register_fiis(self, fiis_data: dict, fiis_registered: dict, next_row_to_be_filled=None):
+      """
+      fiis_data: records to be saved
+      registered_fiis: records already saved to compare whether to save or not
+      """
       # logging.info(f'\nProcessing {len(fiis)} FIIs')
       pass
 
@@ -123,16 +128,31 @@ class CollectedDataWorkflow(Workflow):
           return False
       return True
 
-    def register_fiis(self, fiis_data: dict, next_row_to_be_filled=None):
+    def register_fiis(self, fiis_data: dict, fiis_registered: list, next_row_to_be_filled=None):
+      """
+        Arguments:
+          fiis_data: records to be saved
+          registered_fiis: records tuple (index, fii) already saved to compare whether to save or not
+
+      """
       fiis = json.loads(fiis_data)
       logging.info(f'\nProcessing {len(fiis)} FIIs')
       for ticker, fii_data in fiis.items():
         logging.info(f'FII: {ticker} => R$ {fii_data["value"]} em {fii_data["date"]}')
+        # check if FII is already registered but has zero value filled
+        if ticker in [fii for index,fii in fiis_registered]:
+          # fii_index = [index for index,fii in fiis_registered].index(ticker)
+          fii_index = next((index for index,c in fiis_registered if c == ticker), None)
+          fii_row_in_spreadsheet = fii_index + (HEADER_ROW + 1)
+          existing_value = self.spreadsheet.get_cell_value(fii_row_in_spreadsheet, VALUE_COLUMN_INDEX)
+          if existing_value == '' or existing_value == 'R$ 0,00':
+            logging.info(f'FII {ticker} already registered with value {existing_value}: needs to be overwritten')
+            next_row_to_be_filled = fii_row_in_spreadsheet
         self.spreadsheet.update_cell(next_row_to_be_filled, TICKERS_COLUMN_INDEX, ticker)
         self.spreadsheet.update_cell(next_row_to_be_filled, VALUE_COLUMN_INDEX, fii_data['value'] if fii_data['value'] != '' else 0)
         self.spreadsheet.update_cell(next_row_to_be_filled, DATE_COLUMN_INDEX, fii_data['date'])
+        # TODO: validate limit and next available row to be filled
         next_row_to_be_filled += 1
-        # TODO: validate limit of rows to be filled
 
 
 

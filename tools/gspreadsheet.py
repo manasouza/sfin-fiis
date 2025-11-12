@@ -48,6 +48,9 @@ class SpreadsheetIntegration:
     def find(self, query, from_row=0):
         return self.worksheet.find(query, in_row=from_row)
 
+    def get_cell_value(self, row, column):
+        return self.worksheet.cell(row, column).value
+
     def get_cells_in_the_range(self, first_row, first_column, last_row, last_column):
         return self.worksheet.range(first_row, first_column, last_row, last_column)
 

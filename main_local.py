@@ -22,8 +22,8 @@ def main():
     if not result:
         print('Input validation failed. Exiting.')
         return
-    starting_point, next_row_to_be_filled, dy_value_cells, fiis_registered = workflow.check_spreadsheet_state()
-    workflow.register_fiis(args.fiis, next_row_to_be_filled=next_row_to_be_filled)
+    starting_point, next_row_to_be_filled, fiis_valid, fiis_registered = workflow.check_spreadsheet_state()
+    workflow.register_fiis(args.fiis, [f for f in fiis_registered if f not in fiis_valid], next_row_to_be_filled=next_row_to_be_filled)
     # check_dividend_yield(argv, mode='collected', fiis_collected={'HGLG11': {'value':'','date':''}})
 
 
