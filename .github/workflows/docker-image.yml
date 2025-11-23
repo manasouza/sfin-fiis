@@ -1,4 +1,4 @@
-name: Docker Image CI
+  name: Docker Image CI
 
 on:
   push:
@@ -12,7 +12,34 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    env:
+      OCI_CLI_USER: ${{ secrets.OCI_CLI_USER }}
+      OCI_CLI_TENANCY: ${{ secrets.OCI_CLI_TENANCY }}
+      OCI_CLI_FINGERPRINT: ${{ secrets.OCI_CLI_FINGERPRINT }}
+      OCI_CLI_KEY_CONTENT: ${{ secrets.OCI_CLI_KEY_CONTENT }}
+      OCI_CLI_REGION: ${{ secrets.OCI_CLI_REGION }}
+
     steps:
-    - uses: actions/checkout@v4
     - name: Build the Docker image
+      uses: actions/checkout@v4
       run: docker build . --file Dockerfile --tag sfin-fiis:$(date +%s)
+
+    - name: Get or create an OCIR Repository
+      uses: oracle-actions/get-ocir-repository@v1.3.0
+      id: get-ocir-repository
+      with:
+        name: oraclelinux
+        compartment: ${{ secrets.OCI_COMPARTMENT_OCID }}
+
+    - name: Log into OCIR
+      uses: oracle-actions/login-ocir@v1.3.0
+      id: login-ocir
+      with:
+        auth_token: ${{ secrets.OCI_AUTH_TOKEN }}
+
+    - name: Tag and push a container image
+      id: tag-and-push-image
+      run: |
+        docker pull oraclelinux:8-slim
+        docker tag "oraclelinux:8-slim" "${{ steps.get-ocir-repository.outputs.repo_path }}:8-slim"
+        docker push "${{ steps.get-ocir-repository.outputs.repo_path }}:8-slim"
