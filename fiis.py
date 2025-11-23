@@ -12,7 +12,7 @@ from tools.gspreadsheet import SpreadsheetIntegration
 
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
-storage_client = storage.Client()
+# storage_client = storage.Client()
 
 spreadsheet = None
 fiis = {}
@@ -37,12 +37,12 @@ DAYS_LIMIT = config["search"]["before_days_limit"]
 
 
 
-def setup_spreadsheet(spreadsheet_id, credentials_path):
-    global spreadsheet
-    spreadsheet = SpreadsheetIntegration(spreadsheet_id, cred_file_path=credentials_path)
+# def setup_spreadsheet(spreadsheet_id, credentials_path):
+#     global spreadsheet
+#     spreadsheet = SpreadsheetIntegration(spreadsheet_id, cred_file_path=credentials_path)
 
-def any_fii_extracted(fiis: dict):
-    return True if [f for f in fiis.keys() if fiis[f]['value'] != ''] else False
+# def any_fii_extracted(fiis: dict):
+#     return True if [f for f in fiis.keys() if fiis[f]['value'] != ''] else False
 
 def worksheet_state(original_fiis_length):
     """
@@ -50,16 +50,19 @@ def worksheet_state(original_fiis_length):
             worksheet (_type_): _description_
             original_fiis_length (_type_): _description_
         Returns:
-            Tuple: starting_point, starting_point, dy_value_cells, fiis_not_registered
+            Tuple: starting_point, next_row_to_be_filled, dy_value_cells, fiis_not_registered
     """
     dy_value_cell_header = spreadsheet.find(VALUE_COLUMN_NAME, from_row=DY_HEADER_ROW)
     starting_point = dy_value_cell_header.row + 1
+    logging.info(f'Starting point to fill DY values: {starting_point}')
     dy_ticker_cell_header = spreadsheet.find(TICKERS_COLUMN_NAME, from_row=DY_HEADER_ROW)
     next_row_to_be_filled = (dy_value_cell_header.row + original_fiis_length)
+    logging.info(f'Next row to be filled: {next_row_to_be_filled}')
     dy_value_cells = spreadsheet.get_cells_in_the_range(starting_point, dy_value_cell_header.col, starting_point, dy_value_cell_header.col)
     dy_ticker_cells = spreadsheet.get_cells_in_the_range(starting_point, dy_ticker_cell_header.col, starting_point, dy_ticker_cell_header.col)
-    dy_ticker_cell_values = [d.value.upper() for d in dy_ticker_cells]
-    return starting_point, next_row_to_be_filled, dy_value_cells, dy_ticker_cell_values
+    fiis_registered = [d.value.upper() for d in dy_ticker_cells]
+    logging.info(f'FIIs already registered in DY worksheet: {fiis_registered}')
+    return starting_point, next_row_to_be_filled, dy_value_cells, fiis_registered
 
 def check_registration_state(registered_tickers, fiis_list, dy_value_filled_cells):
     """_summary_
@@ -145,8 +148,8 @@ def check_dividend_yield(fiis_list=[], fiis_collected={}, limited=True, mode='sc
     else:
         logging.warning('no valid mode selected or insufficient data input, exiting')
         return
-
-    logging.info(f'\nProcessing {len(fiis)} FIIs')
+    # logging.info(f'Total registered FIIs: {original_fiis_length}')
+    # logging.info(f'\nProcessing {len(fiis)} FIIs')
     if not any_fii_extracted(fiis):
         logging.warning('could not extract fiis from source. Check for source website updates.')
         sys.exit()

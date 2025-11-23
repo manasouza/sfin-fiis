@@ -18,12 +18,12 @@ def main():
     spreadsheet = setup_spreadsheet(os.getenv('SPREADSHEET_ID'), os.getenv('CREDENTIALS_PATH'))
 
     workflow = setup_workflow(args.mode, spreadsheet)
-    result = workflow.validate_input(eval(args.fiis))
+    result, validated_fiis = workflow.validate_input(eval(args.fiis))
     if not result:
         print('Input validation failed. Exiting.')
         return
     starting_point, next_row_to_be_filled, fiis_valid, fiis_registered = workflow.check_spreadsheet_state()
-    workflow.register_fiis(args.fiis, [f for f in fiis_registered if f not in fiis_valid], next_row_to_be_filled=next_row_to_be_filled)
+    workflow.register_fiis(validated_fiis, [f for f in fiis_registered if f not in fiis_valid], next_row_to_be_filled=next_row_to_be_filled)
     # check_dividend_yield(argv, mode='collected', fiis_collected={'HGLG11': {'value':'','date':''}})
 
 

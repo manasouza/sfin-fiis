@@ -21,6 +21,6 @@ spreadsheet:
 crawler:
   site_component: '//div[@class="dividends-table-container"]//text()'
 search:
-  before_days_limit: 5
+  before_days_limit: 30
 
 
