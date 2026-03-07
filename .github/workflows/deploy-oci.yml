@@ -1,0 +1,41 @@
+name: Deploy to OCI VM
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install SSH key
+      uses: shimataro/ssh-key-action@v2
+      with:
+        key: ${{ secrets.OCI_VM_SSH_KEY }}
+        known_hosts: ${{ secrets.OCI_VM_KNOWN_HOSTS }}
+
+    - name: Copy files to VM
+      uses: appleboy/scp-action@v0.1.4
+      with:
+        host: ${{ secrets.OCI_VM_HOST }}
+        username: ${{ secrets.OCI_VM_USER }}
+        key: ${{ secrets.OCI_VM_SSH_KEY }}
+        source: "."
+        target: "/home/${{ secrets.OCI_VM_USER }}/sfin-fiis"
+
+    - name: Install dependencies and run script
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.OCI_VM_HOST }}
+        username: ${{ secrets.OCI_VM_USER }}
+        key: ${{ secrets.OCI_VM_SSH_KEY }}
+        script: |
+          cd /home/${{ secrets.OCI_VM_USER }}/sfin-fiis
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python main_local.py -m collected -f '{}'
