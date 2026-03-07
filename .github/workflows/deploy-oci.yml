@@ -28,7 +28,7 @@ jobs:
         source: "."
         target: "/home/${{ secrets.OCI_VM_USER }}/sfin-fiis"
 
-    - name: Install dependencies and run script
+    - name: Install dependencies
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.OCI_VM_HOST }}
@@ -36,6 +36,12 @@ jobs:
         key: ${{ secrets.OCI_VM_SSH_KEY }}
         script: |
           cd /home/${{ secrets.OCI_VM_USER }}/sfin-fiis
+          # create a centralized virtual environment in the home directory
+          PYENV_DIR="/home/${{ secrets.OCI_VM_USER }}/pyenvs/sfin-fiis"
+          if [ ! -d "$PYENV_DIR" ]; then
+            python -m venv "$PYENV_DIR"
+          fi
+          # activate and install
+          source "$PYENV_DIR/bin/activate"
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          python main_local.py -m collected -f '{}'
