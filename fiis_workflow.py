@@ -149,7 +149,10 @@ class CollectedDataWorkflow(Workflow):
           registered_fiis: records tuple (index, fii) already saved to compare whether to save or not
 
       """
-      fiis = json.loads(fiis_data)
+      if isinstance(fiis_data, dict):
+        fiis = fiis_data
+      else:
+        fiis = json.loads(fiis_data)
       logging.info(f'\nProcessing {len(fiis)} FIIs')
       for ticker, fii_data in fiis.items():
         logging.info(f'FII: {ticker} => R$ {fii_data["value"]} em {fii_data["date"]}')
