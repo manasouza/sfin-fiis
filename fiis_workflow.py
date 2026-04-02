@@ -133,9 +133,9 @@ class CollectedDataWorkflow(Workflow):
           logging.warning(f'FII {fii_code} has invalid value format: "{value}". Expected format is "X,XX"')
         # check if date is in correct format DD/MM/YYYY
         elif not re.match(r'^\d{2}/\d{2}/\d{4}$', date):
-          logging.warning(f'FII {fii_code} has invalid date format: "{date}". Expected format is "DD-MM-YYYY"')
+          logging.warning(f'FII {fii_code} has invalid date format: "{date}". Expected format is "DD/MM/YYYY"')
         # check if date is no longer than one month ago
-        elif datetime.strptime(date, '%Y-%m-%d') < datetime.now() - timedelta(days=DAYS_LIMIT):
+        elif datetime.strptime(date, '%d/%m/%Y') < datetime.now() - timedelta(days=DAYS_LIMIT):
           logging.warning(f'FII {fii_code} has a date older than {DAYS_LIMIT} days: "{date}"')
         else:
           is_valid = True
