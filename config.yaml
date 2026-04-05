@@ -21,6 +21,10 @@ spreadsheet:
 crawler:
   site_component: '//div[@class="dividends-table-container"]//text()'
 search:
-  before_days_limit: 30
+  before_days_limit: 10
+crewai:
+  website_url: 'https://investidor10.com.br/fiis/'
+  model: 'perplexity/sonar'
+  max_rpm: 10
 
 

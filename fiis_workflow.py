@@ -25,6 +25,7 @@ DY_DATE_FORMAT = config["spreadsheet"]["dy_tab"]["date_column"]["format"]
 TOTAL_COLUMN = config["spreadsheet"]["dy_tab"]["total_column"]["index"]
 DY_REF_COLUMN = config["spreadsheet"]["dy_tab"]["dy_avg_column"]["index"]
 DAYS_LIMIT = config["search"]["before_days_limit"]
+CREWAI_CONFIG = config.get("crewai", {})
 
 class Workflow:
     def __init__(self, mode: str, spreadsheet: SpreadsheetIntegration):
@@ -91,8 +92,29 @@ class Workflow:
       fiis_data: records to be saved
       registered_fiis: records already saved to compare whether to save or not
       """
+      # TODO: validate if that fits for the generic class model (copied from CollectedDataWorkflow)
       # logging.info(f'\nProcessing {len(fiis)} FIIs')
-      pass
+      if isinstance(fiis_data, dict):
+        fiis = fiis_data
+      else:
+        fiis = json.loads(fiis_data)
+      logging.info(f'\nProcessing {len(fiis)} FIIs')
+      for ticker, fii_data in fiis.items():
+        logging.info(f'FII: {ticker} => R$ {fii_data["value"]} em {fii_data["date"]}')
+        # check if FII is already registered but has zero value filled
+        if ticker in [fii for index,fii in fiis_registered]:
+          # fii_index = [index for index,fii in fiis_registered].index(ticker)
+          fii_index = next((index for index,c in fiis_registered if c == ticker), None)
+          fii_row_in_spreadsheet = fii_index + (HEADER_ROW + 1)
+          existing_value = self.spreadsheet.get_cell_value(fii_row_in_spreadsheet, VALUE_COLUMN_INDEX)
+          if existing_value == '' or existing_value == 'R$ 0,00':
+            logging.info(f'FII {ticker} already registered with value {existing_value}: needs to be overwritten')
+            next_row_to_be_filled = fii_row_in_spreadsheet
+        self.spreadsheet.update_cell(next_row_to_be_filled, TICKERS_COLUMN_INDEX, ticker)
+        self.spreadsheet.update_cell(next_row_to_be_filled, VALUE_COLUMN_INDEX, fii_data['value'] if fii_data['value'] != '' else 0)
+        self.spreadsheet.update_cell(next_row_to_be_filled, DATE_COLUMN_INDEX, fii_data['date'])
+        # TODO: validate limit and next available row to be filled
+        next_row_to_be_filled += 1
 
 class WebscrapingWorkflow(Workflow):
     def __init__(self, mode, spreadsheet):
@@ -118,7 +140,6 @@ class CollectedDataWorkflow(Workflow):
 
     def check_spreadsheet_state(self):
       return super().check_spreadsheet_state()
-
 
     def _validate_values(self, fiis_data: dict):
       validated_fiis = {}
@@ -173,6 +194,32 @@ class CollectedDataWorkflow(Workflow):
 
 
 
+class CrewAIWorkflow(CollectedDataWorkflow):
+    def __init__(self, mode, spreadsheet):
+      super().__init__(mode, spreadsheet)
+      self.website_url = CREWAI_CONFIG.get('website_url', 'https://investidor10.com.br/fiis/')
+      self.model = CREWAI_CONFIG.get('model', 'perplexity/sonar')
+      self.max_rpm = CREWAI_CONFIG.get('max_rpm', 10)
+
+    def validate_input(self, fiis_data=None):
+      """Load FII master list from spreadsheet. No external input needed."""
+      Workflow.validate_input(self, fiis_data or {})
+      return True, {}
+
+    def search_dividends(self, fiis_to_search: list) -> dict:
+      """
+      Run CrewAI agents to discover dividend data for the given FIIs.
+
+      Args:
+          fiis_to_search: List of FII ticker codes to search for
+
+      Returns:
+          Dictionary mapping FII codes to their dividend data
+      """
+      from tools.crewai_search import search_fii_dividends
+      return search_fii_dividends(fiis_to_search, self.website_url, self.model, self.max_rpm)
+
+
 def setup_spreadsheet(spreadsheet_id: str, credentials_path: str) -> SpreadsheetIntegration:
     return SpreadsheetIntegration(spreadsheet_id, cred_file_path=credentials_path)
 
@@ -181,5 +228,7 @@ def setup_workflow(mode: str, spreadsheet: SpreadsheetIntegration):
         return WebscrapingWorkflow(mode, spreadsheet)
     elif mode == 'collected':
         return CollectedDataWorkflow(mode, spreadsheet)
+    elif mode == 'crewai':
+        return CrewAIWorkflow(mode, spreadsheet)
     else:
-        raise ValueError('Invalid mode selected. Choose either "webscraping" or "collected".')
+        raise ValueError('Invalid mode selected. Choose "webscraping", "collected" or "crewai".')
