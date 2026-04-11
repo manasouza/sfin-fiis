@@ -124,6 +124,10 @@ class WebscrapingWorkflow(Workflow):
       # validate that at least one FII has data extracted
       return True if [f for f in fiis_data.keys() if fiis_data[f]['value'] != ''] else False
 
+    def check_spreadsheet_state(self):
+      return super().check_spreadsheet_state()
+
+
 class CollectedDataWorkflow(Workflow):
     def __init__(self, mode, spreadsheet):
       super().__init__(mode, spreadsheet)
@@ -150,8 +154,8 @@ class CollectedDataWorkflow(Workflow):
         if not value or not date:
           logging.warning(f'FII {fii_code} has missing value or date: value="{value}", date="{date}"')
         # check if values are in correct currency format X,XX
-        elif not re.match(r'^\d+,\d{2}$', value):
-          logging.warning(f'FII {fii_code} has invalid value format: "{value}". Expected format is "X,XX"')
+        elif not re.match(r'^\d+,\d+$', value):
+          logging.warning(f'FII {fii_code} has invalid value format: "{value}". Expected format is numeric with comma as decimal separator, e.g., "1,23"')
         # check if date is in correct format DD/MM/YYYY
         elif not re.match(r'^\d{2}/\d{2}/\d{4}$', date):
           logging.warning(f'FII {fii_code} has invalid date format: "{date}". Expected format is "DD/MM/YYYY"')
@@ -168,7 +172,6 @@ class CollectedDataWorkflow(Workflow):
         Arguments:
           fiis_data: records to be saved
           registered_fiis: records tuple (index, fii) already saved to compare whether to save or not
-
       """
       if isinstance(fiis_data, dict):
         fiis = fiis_data
