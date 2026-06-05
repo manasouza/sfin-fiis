@@ -1,8 +1,24 @@
 import os
 import json
 import logging
+import random
+import time
 
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
+
+
+def _crew_outputs(results):
+    for result in results:
+        if isinstance(result, list):
+            yield from result
+        else:
+            yield result
+
+
+def _request_delay(max_rpm: int) -> float:
+    if not max_rpm or max_rpm <= 0:
+        return 0
+    return 60 / max_rpm
 
 
 def search_fii_dividends(fiis_list: list, website_url: str, model: str = 'perplexity/sonar', max_rpm: int = 10) -> dict:
@@ -21,8 +37,11 @@ def search_fii_dividends(fiis_list: list, website_url: str, model: str = 'perple
     import litellm
     from crewai import Agent, Task, Crew, LLM
     from crewai_tools import WebsiteSearchTool
+    from litellm.exceptions import BadRequestError
 
+    os.environ.setdefault("CREWAI_DISABLE_TELEMETRY", "true")
     os.environ.setdefault("CREWAI_TRACING_ENABLED", "false")
+    os.environ.setdefault("OTEL_SDK_DISABLED", "true")
     os.environ.setdefault("OPENAI_API_KEY", "NA")
 
     litellm.num_retries = 3
@@ -87,26 +106,48 @@ def search_fii_dividends(fiis_list: list, website_url: str, model: str = 'perple
         tools=[rag_search_tool],
     )
 
-    crew = Crew(
-        agents=[finance_analyst],
-        tasks=[fii_dy_search],
-        verbose=True,
-        tracing=False,
-        max_rpm=max_rpm
-    )
-
     inputs = [{'fii_code': fii} for fii in fiis_list]
     logging.info(f'Starting CrewAI search for {len(fiis_list)} FIIs: {fiis_list}')
-    results = crew.kickoff_for_each(inputs=inputs)
+
+    results = []
+    failed = []
+    delay_seconds = _request_delay(max_rpm)
+
+    for index, fii_input in enumerate(inputs, start=1):
+        crew = Crew(
+            agents=[finance_analyst],
+            tasks=[fii_dy_search],
+            max_rpm=max_rpm,
+            memory=False,
+            tracing=False,
+            verbose=0,
+        )
+        fii_code = fii_input['fii_code']
+        try:
+            response = crew.kickoff_for_each(inputs=[fii_input])
+            results.append(response)
+            logging.info(f'[{index}/{len(inputs)}] CrewAI search completed for {fii_code}')
+        except BadRequestError as e:
+            logging.warning(f'[{index}/{len(inputs)}] CrewAI BadRequest for {fii_code}: {e}')
+            failed.append(fii_code)
+        except Exception as e:
+            logging.warning(f'[{index}/{len(inputs)}] CrewAI search failed for {fii_code}: {e}')
+            failed.append(fii_code)
+
+        if index < len(inputs) and delay_seconds:
+            time.sleep(delay_seconds + random.uniform(0, min(2, delay_seconds * 0.2)))
 
     fiis_data = {}
-    for res in results:
+    for res in _crew_outputs(results):
+        raw_result = getattr(res, 'raw', '')
         try:
-            json_str = res.raw.replace('json\n', '').replace('\n', '').replace('`', '').strip()
+            json_str = raw_result.replace('json\n', '').replace('\n', '').replace('`', '').strip()
             fii_json = json.loads(json_str)
             fiis_data.update(fii_json)
         except (json.JSONDecodeError, AttributeError) as e:
-            logging.warning(f'Failed to parse CrewAI result: {res.raw} - Error: {e}')
+            logging.warning(f'Failed to parse CrewAI result: {raw_result} - Error: {e}')
 
+    if failed:
+        logging.warning(f'CrewAI search failed for {len(failed)} FIIs: {failed}')
     logging.info(f'CrewAI search completed. Found data for {len(fiis_data)} FIIs')
     return fiis_data

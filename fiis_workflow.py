@@ -27,6 +27,9 @@ DY_REF_COLUMN = config["spreadsheet"]["dy_tab"]["dy_avg_column"]["index"]
 DAYS_LIMIT = config["search"]["before_days_limit"]
 CREWAI_CONFIG = config.get("crewai", {})
 
+def _registered_tickers(fiis_registered):
+    return [fii for _, fii in fiis_registered]
+
 class Workflow:
     def __init__(self, mode: str, spreadsheet: SpreadsheetIntegration):
       self.mode = mode
@@ -34,7 +37,7 @@ class Workflow:
 
     def validate_input(self, fiis_data: dict):
       self.spreadsheet.set_worksheet(SPREADSHEET_TICKETS_TAB)
-      self.original_fiis_list = [ticker for ticker in self.spreadsheet.get_column_values(TICKERS_COLUMN_INDEX-1) if re.search('\w+11', ticker)]
+      self.original_fiis_list = [ticker for ticker in self.spreadsheet.get_column_values(TICKERS_COLUMN_INDEX-1) if re.search(r'\w+11', ticker)]
       logging.info(f'Total registered FIIs: {len(self.original_fiis_list)}')
 
     def check_spreadsheet_state(self):
@@ -64,8 +67,8 @@ class Workflow:
         dy_stats_cell_range = ''.join(['F',str(starting_point),':L',str(last_row)])
         dy_stats_values = self.spreadsheet.copy_cells(dy_stats_cell_range)
 
-        fiis_registered.append('Total')
-        self.spreadsheet.insert_rows(fiis_registered, from_row=starting_point)
+        rows_to_insert = fiis_registered + [(len(fiis_registered), 'Total')]
+        self.spreadsheet.insert_rows(rows_to_insert, from_row=starting_point)
         # create total sum cell
         last_row_with_total = last_row + 1
 
@@ -83,6 +86,8 @@ class Workflow:
                                       'color': {'red': 0, 'green': 0, 'blue': 0}
                                   }
                               }})
+        next_row_to_be_filled = starting_point
+        fiis_registered = []
       else:
         logging.info(f'Next row to be filled: {next_row_to_be_filled}')
       return starting_point, next_row_to_be_filled, fiis_valid, fiis_registered
@@ -102,7 +107,7 @@ class Workflow:
       for ticker, fii_data in fiis.items():
         logging.info(f'FII: {ticker} => R$ {fii_data["value"]} em {fii_data["date"]}')
         # check if FII is already registered but has zero value filled
-        if ticker in [fii for index,fii in fiis_registered]:
+        if ticker in _registered_tickers(fiis_registered):
           # fii_index = [index for index,fii in fiis_registered].index(ticker)
           fii_index = next((index for index,c in fiis_registered if c == ticker), None)
           fii_row_in_spreadsheet = fii_index + (HEADER_ROW + 1)
@@ -181,7 +186,7 @@ class CollectedDataWorkflow(Workflow):
       for ticker, fii_data in fiis.items():
         logging.info(f'FII: {ticker} => R$ {fii_data["value"]} em {fii_data["date"]}')
         # check if FII is already registered but has zero value filled
-        if ticker in [fii for index,fii in fiis_registered]:
+        if ticker in _registered_tickers(fiis_registered):
           # fii_index = [index for index,fii in fiis_registered].index(ticker)
           fii_index = next((index for index,c in fiis_registered if c == ticker), None)
           fii_row_in_spreadsheet = fii_index + (HEADER_ROW + 1)

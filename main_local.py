@@ -45,7 +45,8 @@ def main():
             print('Input validation failed. Exiting.')
             return
         starting_point, next_row_to_be_filled, fiis_valid, fiis_registered = workflow.check_spreadsheet_state()
-        workflow.register_fiis(validated_fiis, [f for f in fiis_registered if f not in fiis_valid], next_row_to_be_filled=next_row_to_be_filled)
+        fiis_pending = [(index, fii) for index, fii in fiis_registered if fii not in fiis_valid]
+        workflow.register_fiis(validated_fiis, fiis_pending, next_row_to_be_filled=next_row_to_be_filled)
 
 
 if __name__ == "__main__":
