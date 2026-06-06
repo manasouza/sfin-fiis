@@ -5,16 +5,14 @@ import yaml
 import re
 import time
 
-import scrapy
-from scrapy.crawler import CrawlerProcess
 from google.cloud import storage
-from gspreadsheet import SpreadsheetIntegration
 from datetime import datetime
 
+from tools.gspreadsheet import SpreadsheetIntegration
 
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
-storage_client = storage.Client()
+# storage_client = storage.Client()
 
 spreadsheet = None
 fiis = {}
@@ -22,7 +20,6 @@ fiis = {}
 with open("config.yaml") as f:
     config = yaml.load(f, Loader=yaml.FullLoader)
 SPREADSHEET_TICKETS_TAB = config["spreadsheet"]["tickers_tab"]
-CRAWLER_SITE_COMPONENT = config["crawler"]["site_component"]
 SPREADSHEET_DY_TAB = config["spreadsheet"]["dy_tab"]["name"]
 HEADER_ROW = config["spreadsheet"]["dy_tab"]["header_row"]
 TICKERS_COLUMN_INDEX = config["spreadsheet"]["dy_tab"]["tickers_column"]["index"]
@@ -39,84 +36,13 @@ DY_REF_COLUMN = config["spreadsheet"]["dy_tab"]["dy_avg_column"]["index"]
 DAYS_LIMIT = config["search"]["before_days_limit"]
 
 
-class FiisComBrSpider(scrapy.Spider):
 
-    name = 'fiis'
-    allowed_domains = ['fiis.com.br']
+# def setup_spreadsheet(spreadsheet_id, credentials_path):
+#     global spreadsheet
+#     spreadsheet = SpreadsheetIntegration(spreadsheet_id, cred_file_path=credentials_path)
 
-    def __init__(self, fii='fii_code'):
-        logger = logging.getLogger('scrapy.statscollectors')
-        logger.setLevel(logging.ERROR)
-        logger = logging.getLogger('scrapy.core.engine')
-        logger.setLevel(logging.WARNING)
-        logger = logging.getLogger('scrapy.middleware')
-        logger.setLevel(logging.WARNING)
-        logger = logging.getLogger('scrapy.extensions.telnet')
-        logger.setLevel(logging.WARNING)
-        logger.info('###############################################################')
-        logger.info('starting crawler processing')
-        logger.info('###############################################################')
-        super(FiisComBrSpider, self).__init__()
-        self.url = 'https://fiis.com.br/%s' % fii
-
-    def start_requests(self):
-        url=self.url
-        yield scrapy.Request(url, errback=self.errback_httpbin)
-
-    def errback_httpbin(self, failure):
-        """ Ref: https://docs.scrapy.org/en/latest/topics/request-response.html
-        Args:
-            failure (_type_): _description_
-        """
-        # TODO: exponential backoff to try to request again those failed requests
-        print('###############################################################')
-        logging.error(failure.value.response)
-        print('###############################################################')
-
-
-    def parse(self, response):
-        logging.info("procesing: "+response.url)
-        fii_code = response.url.split('/')[-2]
-        fii_updates = response.xpath(CRAWLER_SITE_COMPONENT).extract()
-        extracted_value, extracted_ref_date = self._extract_dyvalue_and_date_v2(fii_updates)
-        add_fii_dy_data(fii_code, extracted_value, extracted_ref_date)
-
-    def _extract_dyvalue_and_date_v2(self, fii_updates, extracted_value='', extracted_ref_date=''):
-        """Extract DY values from website "v2"
-
-           fii_updates represents the content of the extracted website piece. It's a table with history of DY revenues
-            * It's sliced from index 2 to eliminate the part of the title (i.e. ÚLTIMOS DIVIDENDOS DO VINO11)
-            * There are five columns: Data Base, Data Pagamento, Cotação Base, Dividend Yield, Rendimento
-            ** First registry represents most recent values
-            ** Since the table values are into a list, 5 and 9 are the index of first occurence of date and DY value
-
-        Returns:
-            Tuple: DY value, Date reference value
-        """
-        revenue_elements = [f.replace('\n', '').rstrip() for f in fii_updates if f != '\n' and f != '\n '][2:]
-        for index,element in enumerate(revenue_elements):
-            value_found = re.search('R\$\s(\d?,?\d+|)', element)
-            if value_found and index==9:
-                extracted_value = value_found.group(1)
-            date_found = re.search('(\d{2}\.\d{2}\.\d{4})', element)
-            if date_found and index==5:
-                extracted_ref_date = date_found.group(1)
-            if extracted_ref_date and extracted_value:
-                return extracted_value, extracted_ref_date.replace('.', '/')
-        return '',''
-
-def setup_spreadsheet(spreadsheet_id, credentials_path):
-    global spreadsheet
-    spreadsheet = SpreadsheetIntegration(spreadsheet_id, cred_file_path=credentials_path)
-
-def add_fii_dy_data(fii_code: str, dy_value: str, dy_base_date: str):
-    fiis[fii_code] = {
-        'value': dy_value,
-        'date': dy_base_date
-    }
-
-def any_fii_extracted(fiis: dict):
-    return True if [f for f in fiis.keys() if fiis[f]['value'] != ''] else False
+# def any_fii_extracted(fiis: dict):
+#     return True if [f for f in fiis.keys() if fiis[f]['value'] != ''] else False
 
 def worksheet_state(original_fiis_length):
     """
@@ -124,19 +50,19 @@ def worksheet_state(original_fiis_length):
             worksheet (_type_): _description_
             original_fiis_length (_type_): _description_
         Returns:
-            Tuple: starting_point, starting_point, dy_value_cells, fiis_not_registered
+            Tuple: starting_point, next_row_to_be_filled, dy_value_cells, fiis_not_registered
     """
     dy_value_cell_header = spreadsheet.find(VALUE_COLUMN_NAME, from_row=DY_HEADER_ROW)
-
-    import ipdb; ipdb.set_trace()
-
     starting_point = dy_value_cell_header.row + 1
+    logging.info(f'Starting point to fill DY values: {starting_point}')
     dy_ticker_cell_header = spreadsheet.find(TICKERS_COLUMN_NAME, from_row=DY_HEADER_ROW)
     next_row_to_be_filled = (dy_value_cell_header.row + original_fiis_length)
+    logging.info(f'Next row to be filled: {next_row_to_be_filled}')
     dy_value_cells = spreadsheet.get_cells_in_the_range(starting_point, dy_value_cell_header.col, starting_point, dy_value_cell_header.col)
     dy_ticker_cells = spreadsheet.get_cells_in_the_range(starting_point, dy_ticker_cell_header.col, starting_point, dy_ticker_cell_header.col)
-    dy_ticker_cell_values = [d.value.upper() for d in dy_ticker_cells]
-    return starting_point, next_row_to_be_filled, dy_value_cells, dy_ticker_cell_values
+    fiis_registered = [d.value.upper() for d in dy_ticker_cells]
+    logging.info(f'FIIs already registered in DY worksheet: {fiis_registered}')
+    return starting_point, next_row_to_be_filled, dy_value_cells, fiis_registered
 
 def check_registration_state(registered_tickers, fiis_list, dy_value_filled_cells):
     """_summary_
@@ -173,7 +99,7 @@ def insert_blank_row_set(starting_point, next_row_to_be_filled, original_fiis_le
             bool: True if blank row should be inserted, False otherwise
     """
     if original_fiis_length is not None and filled_cells_count >= original_fiis_length:
-        spreadsheet.insert_rows(dy_value_filled_cells, next_row_to_be_filled, value_input_option='RAW')
+        spreadsheet.insert_rows(dy_value_filled_cells, next_row_to_be_filled)
         # create total sum cell
         spreadsheet.update_cell(starting_point, TOTAL_COLUMN, ''.join(['=SUM(C',str(next_row_to_be_filled),':C',str(starting_point),')']))
         # most_recent_date = max((date_values), key=lambda x: datetime.strptime(x, "%d/%m/%Y"))
@@ -182,15 +108,21 @@ def insert_blank_row_set(starting_point, next_row_to_be_filled, original_fiis_le
         spreadsheet.format(''.join(['H',str(starting_point),':I',str(starting_point)]), {'textFormat': {'bold': True}})
         # TODO: copy/paste for formula cells on past month
 
-def check_dividend_yield(fiis_list=[], limited=True):
+def check_dividend_yield(fiis_list=[], fiis_collected={}, limited=True, mode='scraping'):
     """
         Args:
             fiis_list (list, optional): list of FII code to process, if informed. Defaults to [].
+            fiis_collected (list, optional): list of FIIs data collected outside the scraping process. Should be in the format "{fii:{value,date}}". Defaults to [].
             limited (bool, optional): Delimit days count from today and if true, it will confront with configured limit days to process FIIs data. Defaults to True.
+            mode (str, optional): 'scraping' to use scrapy to collect FIIs data, 'collected' to use fiis_collected data. Defaults to 'scraping'.
     """
     original_fiis_length = None
-    if not fiis:
-        spreadsheet.set_worksheet(SPREADSHEET_TICKETS_TAB)
+    global fiis
+    spreadsheet.set_worksheet(SPREADSHEET_TICKETS_TAB)
+    if not fiis and mode == 'scraping':
+        from tools.webscraping import FiisComBrSpider
+        from scrapy.crawler import CrawlerProcess
+
         original_fiis_list = [ticker for ticker in spreadsheet.get_column_values(TICKERS_COLUMN_INDEX-1) if re.search('\w+11', ticker)]
         original_fiis_length = len(original_fiis_list)
         if not fiis_list:
@@ -205,7 +137,19 @@ def check_dividend_yield(fiis_list=[], limited=True):
         for fii in fiis_list:
             process.crawl(FiisComBrSpider, fii=fii)
         process.start()
-    logging.info(f'\nProcessing {len(fiis)} FIIs')
+    elif mode == 'collected' and fiis_collected:
+        logging.info('Skipping crawling process, using provided FIIs data')
+        original_fiis_list = [ticker for ticker in spreadsheet.get_column_values(TICKERS_COLUMN_INDEX-1) if re.search('\w+11', ticker)]
+        original_fiis_length = len(original_fiis_list)
+        fiis = fiis_collected
+        if original_fiis_length == 0:
+            logging.warning('no FIIs to be processed')
+            return
+    else:
+        logging.warning('no valid mode selected or insufficient data input, exiting')
+        return
+    # logging.info(f'Total registered FIIs: {original_fiis_length}')
+    # logging.info(f'\nProcessing {len(fiis)} FIIs')
     if not any_fii_extracted(fiis):
         logging.warning('could not extract fiis from source. Check for source website updates.')
         sys.exit()
