@@ -56,9 +56,9 @@ def main():
             return
         logging.info(f'FIIs to search with webscraping: {fiis_to_search}')
         search_results = workflow.search_dividends(fiis_to_search)
-        is_valid, validated_fiis = workflow.validate_input(search_results)
+        is_valid, validated_fiis = workflow._validate_values(search_results)
         if not is_valid:
-            logging.warning('No valid results from webscraping.')
+            logging.warning('No valid results from webscraping search.')
             return
         workflow.register_fiis(validated_fiis, fiis_registered, next_row_to_be_filled=next_row_to_be_filled)
     else:

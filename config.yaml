@@ -20,11 +20,13 @@ spreadsheet:
       index:  5
 crawler:
   site_component: '//div[@class="dividends-table-container"]//text()'
+  download_delay: 3
+  randomize_download_delay: true
+  retry_times: 3
 search:
   before_days_limit: 10
 crewai:
   website_url: 'https://investidor10.com.br/fiis/'
   model: 'perplexity/sonar'
   max_rpm: 10
-
 

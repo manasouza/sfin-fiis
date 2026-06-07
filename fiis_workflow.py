@@ -40,6 +40,28 @@ class Workflow:
       self.original_fiis_list = [ticker for ticker in self.spreadsheet.get_column_values(TICKERS_COLUMN_INDEX-1) if re.search(r'\w+11', ticker)]
       logging.info(f'Total registered FIIs: {len(self.original_fiis_list)}')
 
+    def _validate_values(self, fiis_data: dict):
+      validated_fiis = {}
+      is_valid = False
+      for fii_code, fii_info in fiis_data.items():
+        value = fii_info.get('value', '')
+        date = fii_info.get('date', '')
+        if not value or not date:
+          logging.warning(f'FII {fii_code} has missing value or date: value="{value}", date="{date}"')
+        # check if values are in correct currency format X,XX
+        elif not re.match(r'^\d+,\d+$', value):
+          logging.warning(f'FII {fii_code} has invalid value format: "{value}". Expected format is numeric with comma as decimal separator, e.g., "1,23"')
+        # check if date is in correct format DD/MM/YYYY
+        elif not re.match(r'^\d{2}/\d{2}/\d{4}$', date):
+          logging.warning(f'FII {fii_code} has invalid date format: "{date}". Expected format is "DD/MM/YYYY"')
+        # check if date is no longer than one month ago
+        elif datetime.strptime(date, '%d/%m/%Y') < datetime.now() - timedelta(days=DAYS_LIMIT):
+          logging.warning(f'FII {fii_code} has a date older than {DAYS_LIMIT} days: "{date}"')
+        else:
+          is_valid = True
+          validated_fiis[fii_code] = fii_info
+      return is_valid, validated_fiis
+
     def check_spreadsheet_state(self):
       """
       Checks the current state of the spreadsheet in terms of FIIs registered to determine where to insert new data.
@@ -155,28 +177,6 @@ class CollectedDataWorkflow(Workflow):
 
     def check_spreadsheet_state(self):
       return super().check_spreadsheet_state()
-
-    def _validate_values(self, fiis_data: dict):
-      validated_fiis = {}
-      is_valid = False
-      for fii_code, fii_info in fiis_data.items():
-        value = fii_info.get('value', '')
-        date = fii_info.get('date', '')
-        if not value or not date:
-          logging.warning(f'FII {fii_code} has missing value or date: value="{value}", date="{date}"')
-        # check if values are in correct currency format X,XX
-        elif not re.match(r'^\d+,\d+$', value):
-          logging.warning(f'FII {fii_code} has invalid value format: "{value}". Expected format is numeric with comma as decimal separator, e.g., "1,23"')
-        # check if date is in correct format DD/MM/YYYY
-        elif not re.match(r'^\d{2}/\d{2}/\d{4}$', date):
-          logging.warning(f'FII {fii_code} has invalid date format: "{date}". Expected format is "DD/MM/YYYY"')
-        # check if date is no longer than one month ago
-        elif datetime.strptime(date, '%d/%m/%Y') < datetime.now() - timedelta(days=DAYS_LIMIT):
-          logging.warning(f'FII {fii_code} has a date older than {DAYS_LIMIT} days: "{date}"')
-        else:
-          is_valid = True
-          validated_fiis[fii_code] = fii_info
-      return is_valid, validated_fiis
 
     def register_fiis(self, fiis_data: dict, fiis_registered: list, next_row_to_be_filled=None):
       """
