@@ -125,12 +125,18 @@ class WebscrapingWorkflow(Workflow):
     def __init__(self, mode, spreadsheet):
       super().__init__(mode, spreadsheet)
 
-    def validate_input(self, fiis_data: dict):
-      # validate that at least one FII has data extracted
-      return True if [f for f in fiis_data.keys() if fiis_data[f]['value'] != ''] else False
+    def validate_input(self, fiis_data: dict = None):
+      if fiis_data is None:
+        super().validate_input({})
+        return True, {}
+      return CollectedDataWorkflow._validate_values(self, fiis_data)
 
     def check_spreadsheet_state(self):
       return super().check_spreadsheet_state()
+
+    def search_dividends(self, fiis_to_search: list) -> dict:
+      from tools.webscraping import search_fii_dividends
+      return search_fii_dividends(fiis_to_search)
 
 
 class CollectedDataWorkflow(Workflow):

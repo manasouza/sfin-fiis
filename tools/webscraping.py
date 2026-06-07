@@ -2,6 +2,7 @@ import scrapy
 import logging
 import re
 import yaml
+from scrapy.crawler import CrawlerProcess
 
 with open("config.yaml") as f:
     config = yaml.load(f, Loader=yaml.FullLoader)
@@ -10,10 +11,29 @@ CRAWLER_SITE_COMPONENT = config["crawler"]["site_component"]
 fiis = {}
 
 def add_fii_dy_data(fii_code: str, dy_value: str, dy_base_date: str):
-    fiis[fii_code] = {
+    fiis[fii_code.upper()] = {
         'value': dy_value,
         'date': dy_base_date
     }
+
+def search_fii_dividends(fiis_list: list) -> dict:
+    """
+    Run FiisComBrSpider for each requested FII and return the extracted DY data.
+    """
+    fiis.clear()
+    if not fiis_list:
+        logging.warning('No FIIs provided for webscraping.')
+        return {}
+
+    process = CrawlerProcess({
+        'CONCURRENT_REQUESTS': 1,
+        'REQUEST_FINGERPRINTER_IMPLEMENTATION': '2.7'
+    })
+    for fii in fiis_list:
+        process.crawl(FiisComBrSpider, fii=fii)
+    process.start()
+
+    return dict(fiis)
 
 class FiisComBrSpider(scrapy.Spider):
 
@@ -33,7 +53,8 @@ class FiisComBrSpider(scrapy.Spider):
         logger.info('starting crawler processing')
         logger.info('###############################################################')
         super(FiisComBrSpider, self).__init__()
-        self.url = 'https://fiis.com.br/%s' % fii
+        self.fii = fii.upper()
+        self.url = 'https://fiis.com.br/%s' % self.fii
 
     def start_requests(self):
         url=self.url
@@ -52,10 +73,9 @@ class FiisComBrSpider(scrapy.Spider):
 
     def parse(self, response):
         logging.info("procesing: "+response.url)
-        fii_code = response.url.split('/')[-2]
         fii_updates = response.xpath(CRAWLER_SITE_COMPONENT).extract()
         extracted_value, extracted_ref_date = self._extract_dyvalue_and_date_v2(fii_updates)
-        add_fii_dy_data(fii_code, extracted_value, extracted_ref_date)
+        add_fii_dy_data(self.fii, extracted_value, extracted_ref_date)
 
     def _extract_dyvalue_and_date_v2(self, fii_updates, extracted_value='', extracted_ref_date=''):
         """Extract DY values from website "v2"
@@ -71,10 +91,10 @@ class FiisComBrSpider(scrapy.Spider):
         """
         revenue_elements = [f.replace('\n', '').rstrip() for f in fii_updates if f != '\n' and f != '\n '][2:]
         for index,element in enumerate(revenue_elements):
-            value_found = re.search('R\$\s(\d?,?\d+|)', element)
+            value_found = re.search(r'R\$\s(\d?,?\d+|)', element)
             if value_found and index==9:
                 extracted_value = value_found.group(1)
-            date_found = re.search('(\d{2}\.\d{2}\.\d{4})', element)
+            date_found = re.search(r'(\d{2}\.\d{2}\.\d{4})', element)
             if date_found and index==5:
                 extracted_ref_date = date_found.group(1)
             if extracted_ref_date and extracted_value:

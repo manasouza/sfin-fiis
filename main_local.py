@@ -47,6 +47,23 @@ def main():
         starting_point, next_row_to_be_filled, fiis_valid, fiis_registered = workflow.check_spreadsheet_state()
         fiis_pending = [(index, fii) for index, fii in fiis_registered if fii not in fiis_valid]
         workflow.register_fiis(validated_fiis, fiis_pending, next_row_to_be_filled=next_row_to_be_filled)
+    elif args.mode == 'webscraping':
+        workflow.validate_input()
+        starting_point, next_row_to_be_filled, fiis_valid, fiis_registered = workflow.check_spreadsheet_state()
+        fiis_to_search = [fii for fii in workflow.original_fiis_list if fii not in fiis_valid]
+        if not fiis_to_search:
+            logging.info('No FIIs registered in the spreadsheet.')
+            return
+        logging.info(f'FIIs to search with webscraping: {fiis_to_search}')
+        search_results = workflow.search_dividends(fiis_to_search)
+        is_valid, validated_fiis = workflow.validate_input(search_results)
+        if not is_valid:
+            logging.warning('No valid results from webscraping.')
+            return
+        workflow.register_fiis(validated_fiis, fiis_registered, next_row_to_be_filled=next_row_to_be_filled)
+    else:
+        logging.error('Invalid mode selected: {}. Exiting.'.format(args.mode))
+        sys.exit(1)
 
 
 if __name__ == "__main__":
