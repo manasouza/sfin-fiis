@@ -3,13 +3,13 @@ scrapy==2.11.2
 google-cloud-storage==2.16.0
 google-auth==2.30.0
 pyaml==24.4.0
-python-dotenv==1.1.1
+python-dotenv==1.2.2
 # latest: 1.13.0
-crewai==1.6.1
-crewai-tools==0.76.0
-langchain-perplexity==1.1.0
-langchain-huggingface==1.2.1
-sentence-transformers==5.3.0
-litellm==1.83.0
+crewai==1.14.7
+crewai-tools==1.14.7
+langchain-perplexity==1.4.0
+langchain-huggingface==1.2.2
+sentence-transformers==5.5.1
+litellm==1.87.1
 qdrant-client==1.17.1
 fastembed==0.8.0
