@@ -56,7 +56,7 @@ def search_fii_dividends(fiis_list: list, website_url: str, model: str = 'perple
             llm=dict(
                 provider="openai",
                 config=dict(
-                    model="perplexity/sonar",
+                    model=model,
                     api_key=perplexity_api_key,
                     base_url="https://api.perplexity.ai"
                 ),
@@ -90,10 +90,11 @@ def search_fii_dividends(fiis_list: list, website_url: str, model: str = 'perple
         description=(
             "Procurar no site " + website_url + " a informação do valor do dividendo mais recente do FII {fii_code}. "
             "Seja sucinto, não adicione análises ou resumos sobre os elementos encontrados. "
-            "Cada FII tem sua página (fiis/{fii_code}). Considerar somente a seção com título {fii_code} DIVIDENDOS, "
-            "sob Distribuições nos últimos 12 meses. "
-            "Considerar somente o registro da primeira linha da tabela. "
-            "Extraia somente a Data Base (Data Com) e o valor do dividendo, normalmente referenciado como Valor or Rendimento."
+            "Cada FII tem sua página (fiis/{fii_code}). Considerar somente a seção com título {fii_code} DIVIDENDOS."
+            "Esta mesma seção demonstra as Distribuições nos últimos 12 meses. Considerar somente o registro da primeira linha da tabela."
+            "Extraia somente a 'Data Base' (geralmente denominada 'Data Com') e o valor do dividendo, normalmente referenciado como 'Valor' ou 'Rendimento'."
+            "Geralmente existe outra data definida como 'Data de pagamento', mas esta deve ser descartada. Considerar 'Data Com' como válida. Para ajudar a decidir, a 'Data Com' é sempre anterior à 'Data de pagamento'."
+            "Ademais, a 'Data Com' a ser definida tem que ser no máximo referente ao mês anterior."
         ),
         expected_output=(
             "Sem texto explicativo. "
