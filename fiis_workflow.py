@@ -238,6 +238,7 @@ def setup_spreadsheet(spreadsheet_id: str, credentials_path: str) -> Spreadsheet
     return SpreadsheetIntegration(spreadsheet_id, cred_file_path=credentials_path)
 
 def setup_workflow(mode: str, spreadsheet: SpreadsheetIntegration):
+    logging.info(f'Searching FIIs data until {DAYS_LIMIT} days ago')
     if mode == 'webscraping':
         return WebscrapingWorkflow(mode, spreadsheet)
     elif mode == 'collected':
