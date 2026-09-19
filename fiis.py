@@ -1,14 +1,10 @@
-import os
 import sys
 import logging
 import yaml
 import re
 import time
 
-from google.cloud import storage
 from datetime import datetime
-
-from tools.gspreadsheet import SpreadsheetIntegration
 
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
