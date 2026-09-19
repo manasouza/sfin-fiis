@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import datetime
 import argparse
 import sys
 
@@ -10,7 +11,48 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
+def configure_logging():
+    log_dir = os.getenv('LOG_DIR', '/var/log')
+    today = datetime.date.today().strftime('%Y%m%d')
+    logfile = os.path.join(log_dir, f'sfinfiis-{today}.log')
+
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+
+    # Console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    root_logger.addHandler(console_handler)
+
+    # File handler (fallbacks to cwd if /var/log not writable)
+    try:
+        file_handler = logging.FileHandler(logfile, encoding='utf-8')
+        file_handler.setFormatter(formatter)
+        root_logger.addHandler(file_handler)
+    except (PermissionError, OSError):
+        fallback_log = os.path.join(os.getcwd(), f'sfinfiis-{today}.log')
+        file_handler = logging.FileHandler(fallback_log, encoding='utf-8')
+        file_handler.setFormatter(formatter)
+        root_logger.addHandler(file_handler)
+
+    # Redirect stdout/stderr to logging
+    class StreamToLogger(object):
+        def __init__(self, logger, level):
+            self.logger = logger
+            self.level = level
+
+        def write(self, buf):
+            if buf and not buf.isspace():
+                for line in buf.rstrip().splitlines():
+                    self.logger.log(self.level, line)
+
+        def flush(self):
+            pass
+
+    sys.stdout = StreamToLogger(root_logger, logging.INFO)
+    sys.stderr = StreamToLogger(root_logger, logging.ERROR)
 
 def main():
     parser = argparse.ArgumentParser()
@@ -67,4 +109,5 @@ def main():
 
 
 if __name__ == "__main__":
+    configure_logging()
     main()
