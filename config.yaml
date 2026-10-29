@@ -24,9 +24,9 @@ crawler:
   randomize_download_delay: true
   retry_times: 3
 search:
-  before_days_limit: 10
+  before_days_limit: 15
 crewai:
   website_url: 'https://investidor10.com.br/fiis/'
-  model: 'perplexity/sonar'
+  model: 'perplexity/sonar-pro'
   max_rpm: 10
 
